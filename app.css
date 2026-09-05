@@ -1,0 +1,26 @@
+[hidden] { display: none !important; }
+.app-status { margin-bottom: 24px; padding: 16px 20px; background: var(--sub-background); border: var(--border); border-radius: 16px; }
+.app-status p { margin: 0 0 8px; }
+.app-actions { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+button:disabled { opacity: .55; cursor: wait; transform: none; box-shadow: none; }
+#editor-dialog, #detail-dialog { width: min(760px, calc(100% - 32px)); max-height: 90dvh; overflow-y: auto; }
+fieldset { border: 0; padding: 0; margin: 0; min-width: 0; }
+label { display: block; margin: 16px 0; font-weight: 600; }
+input:not([type=checkbox]), textarea { display: block; width: 100%; margin-top: 6px; padding: 10px; font: inherit; color: var(--ink); background: var(--background); border: var(--border); border-radius: 10px; }
+textarea { resize: vertical; }
+input[type=file] { font-size: .875rem; }
+input[type=checkbox] { width: 20px; height: 20px; accent-color: var(--ink); flex: 0 0 20px; }
+.check-label { display: flex; gap: 10px; align-items: center; }
+.help { font-size: .875rem; }
+.image-editor, .character-editor { padding: 16px; margin: 20px 0; border: var(--border); border-radius: 16px; background: var(--background); }
+.character-editor .image-editor { border: 0; padding: 0; }
+.image-preview { display: block; max-width: 100%; height: 180px; object-fit: contain; margin: 12px auto; }
+.profile-image { overflow: hidden; }
+.profile-image img { width: 100%; height: 220px; object-fit: contain; }
+.full-image { display: block; max-width: 100%; max-height: 650px; object-fit: contain; margin: 20px auto; }
+.user-text { white-space: pre-wrap; overflow-wrap: anywhere; }
+#detail-content h2 { margin-top: 24px; }
+#detail-content h3 { margin-top: 32px; }
+#editor-message, .image-message { white-space: pre-wrap; overflow-wrap: anywhere; }
+:focus-visible { outline: 3px solid var(--ink); outline-offset: 4px; }
+@media (max-width: 620px) { .header-inner { gap: 8px; } nav { gap: 2px; } .nav-link { padding: 7px; } .dialog-inner { padding: 20px; } }
