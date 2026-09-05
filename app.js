@@ -1,5 +1,6 @@
 import { firebaseConfig } from "./firebase-config.js";
 import { IMAGE_KEYS, prepareImage, isWebP } from "./image-codec.js";
+import { ReadCache, readWithDeadline } from './read-cache.js';
 
 const $ = selector => document.querySelector(selector);
 const form = $("#profile-form");
@@ -24,6 +25,13 @@ let opening = false;
 let editorEpoch = 0;
 let gridEpoch = 0;
 let detailEpoch = 0;
+let detailUid = null;
+let authEpoch = 0;
+const publicProfiles = new ReadCache({ ttl: 30000, max: 6 });
+const ownProfiles = new ReadCache({ ttl: 30000, max: 1 });
+const memberships = new ReadCache({ ttl: 30000, max: 1 });
+const imageCache = new ReadCache({ ttl: 120000, max: 48 });
+let publicVersions = new Map();
 const imageVersions = new Map();
 const editorUrls = new Set();
 const gridUrls = new Set();
@@ -32,7 +40,11 @@ const clearUrls = urls => { urls.forEach(url => URL.revokeObjectURL(url)); urls.
 
 function describe(error) {
   const code = error?.code || "";
-  if (code === "permission-denied") return "アクセスできません。参加受付の設定・参加権限・Firestoreルールを確認してください。入力内容はこの画面に残っています。";
+  if (code === "permission-denied") {
+    memberships.clear();
+    ownProfiles.clear();
+    return "アクセスできません。参加受付の設定・参加権限・Firestoreルールを確認してください。入力内容はこの画面に残っています。";
+  }
   if (code === "resource-exhausted") return "無料枠などの利用上限に達しました。時間を置いて試してください。";
   if (code.includes("popup-blocked")) return "ログイン画面がブロックされました。Safari等の通常ブラウザで開き、ポップアップを許可してもう一度押してください。";
   if (code.includes("popup-closed") || code.includes("cancelled-popup")) return "ログインをキャンセルしました。";
@@ -57,7 +69,14 @@ async function signIn() {
 // 六つの固定席をトランザクションとサーバー側ルールで確保。
 // 0は運営者専用、1〜5は先着。クライアントの人数表示には依存しない。
 async function ensureMember(uid) {
-  await F.runTransaction(db, async tx => {
+  return memberships.get(uid, async () => {
+    const memberRef = F.doc(db, 'members', uid);
+    const existing = await readWithDeadline(F.getDocFromServer(memberRef));
+    if (existing.exists()) {
+      if (!existing.data().active) throw new Error('このアカウントの投稿受付は停止されています。');
+      return true;
+    }
+    await F.runTransaction(db, async tx => {
     const memberRef = F.doc(db, "members", uid);
     const member = await tx.get(memberRef);
     if (member.exists()) {
@@ -71,12 +90,20 @@ async function ensureMember(uid) {
     if (!admin && config.open !== true) throw new Error("現在、新規参加の受付は停止中です。");
     const candidates = admin ? ["0"] : ["1", "2", "3", "4", "5"];
     const refs = candidates.map(slot => F.doc(db, "seats", slot));
-    const snapshots = [];
-    for (const ref of refs) snapshots.push(await tx.get(ref));
+    const snapshots = await Promise.all(refs.map(ref => tx.get(ref)));
     const index = snapshots.findIndex(snap => !snap.exists());
     if (index < 0) throw new Error("参加枠が埋まりました。ログインなしで閲覧できます。");
     tx.set(memberRef, { slot: candidates[index], active: true, createdAt: F.serverTimestamp() });
     tx.set(refs[index], { uid, createdAt: F.serverTimestamp() });
+    });
+    return true;
+  });
+}
+
+function readOwnProfile(uid) {
+  return ownProfiles.get(uid, async () => {
+    const snapshot = await readWithDeadline(F.getDocFromServer(F.doc(db, 'profiles', uid)));
+    return snapshot.exists() ? snapshot.data() : null;
   });
 }
 
@@ -113,7 +140,9 @@ function imageControl(key, title) {
     form.querySelector("[type=submit]").disabled = true;
     status.textContent = "画像を縮小しています…";
     try {
-      const prepared = await prepareImage(file);
+      const prepared = await prepareImage(file, { onProgress: text => {
+        if (epoch === editorEpoch && imageVersions.get(key) === version) status.textContent = text;
+      } });
       if (epoch !== editorEpoch || imageVersions.get(key) !== version) return;
       pending.set(key, prepared);
       const url = URL.createObjectURL(new Blob([prepared.full.bytes], { type: "image/webp" }));
@@ -134,7 +163,7 @@ function imageControl(key, title) {
   if (savedProfile?.images[key]) {
     const epoch = editorEpoch;
     status.textContent = "保存済みの画像があります。変更しなければそのまま残ります。";
-    loadImage(user.uid, key, false, preview, editorUrls, () => epoch === editorEpoch && !pending.has(key))
+    loadImage(user.uid, key, false, preview, editorUrls, () => epoch === editorEpoch && !pending.has(key), savedProfile.images[key])
       .catch(() => { if (epoch === editorEpoch) status.textContent = "保存済み画像を取得できませんでした。変更しなければ元の画像は残ります。"; });
   }
   return area;
@@ -145,16 +174,19 @@ async function openEditor() {
   if (opening) return;
   opening = true;
   const uid = user.uid;
+  const session = authEpoch;
   message("参加枠と保存内容を確認しています…");
+  const slow = setTimeout(() => {
+    if (session === authEpoch) message('通信の応答を待っています。初回は参加枠も確保します。再読み込みせず、もう少しお待ちください。');
+  }, 5000);
   try {
-    await ensureMember(uid);
-    const snapshot = await F.getDocFromServer(F.doc(db, "profiles", uid));
-    if (user?.uid !== uid) return;
+    const [, profileData] = await Promise.all([ensureMember(uid), readOwnProfile(uid)]);
+    if (user?.uid !== uid || session !== authEpoch) return;
     editorEpoch++;
     clearUrls(editorUrls);
     pending = new Map();
     imageVersions.clear();
-    savedProfile = snapshot.exists() ? snapshot.data() : null;
+    savedProfile = profileData;
     const data = savedProfile || emptyProfile();
     for (const key of ["name", "bio", "world"]) form.elements.namedItem(key).value = data[key];
     form.elements.namedItem("published").checked = data.published;
@@ -180,13 +212,13 @@ async function openEditor() {
       section.append(nameLabel, descLabel, imageControl(`char${index + 1}`, "立ち絵（任意）"));
       characters.append(section);
     });
-    $("#delete-profile").hidden = !snapshot.exists();
+    $("#delete-profile").hidden = !savedProfile;
     dirty = false;
     editorMessage("未保存の内容は、この画面を閉じたり再読み込みしたりすると失われます。");
     editor.showModal();
     message("ログイン中です。自分のプロフィールを編集できます。");
   } catch (error) { message(describe(error)); }
-  finally { opening = false; }
+  finally { clearTimeout(slow); opening = false; }
 }
 
 async function saveProfile(event) {
@@ -226,6 +258,10 @@ async function saveProfile(event) {
       images, updatedAt: F.serverTimestamp() };
     batch.set(profileRef, data);
     await batch.commit();
+    ownProfiles.set(uid, data);
+    imageCache.drop(`${uid}:`);
+    if (data.published) publicProfiles.set(uid, data);
+    else publicProfiles.drop(uid);
     savedProfile = data;
     pending.clear();
     dirty = false;
@@ -249,6 +285,9 @@ async function deleteProfile() {
     }
     batch.delete(ref);
     await batch.commit();
+    ownProfiles.clear();
+    publicProfiles.drop(user.uid);
+    imageCache.drop(`${user.uid}:`);
     dirty = false;
     editor.close();
     message("投稿データを削除しました。参加枠とログインアカウントは残っています。");
@@ -256,12 +295,19 @@ async function deleteProfile() {
   finally { saving = false; $("#editor-fields").disabled = false; }
 }
 
-async function loadImage(uid, key, thumbnail, target, urls, current) {
-  const snapshot = await F.getDocFromServer(F.doc(db, "profiles", uid, "images", thumbnail ? `${key}-thumb` : key));
-  if (!current() || !snapshot.exists()) return;
-  const data = snapshot.data();
-  const bytes = data.data.toUint8Array();
-  if (data.mime !== "image/webp" || !isWebP(bytes) || bytes.length > (thumbnail ? 20000 : 150000)) throw new Error("無効な画像です。");
+async function loadImage(uid, key, thumbnail, target, urls, current, revision) {
+  const cacheKey = `${uid}:${key}:${thumbnail ? 'thumb' : 'full'}:${revision}`;
+  const bytes = await imageCache.get(cacheKey, async () => {
+    const snapshot = await readWithDeadline(F.getDocFromServer(F.doc(db, "profiles", uid, "images", thumbnail ? `${key}-thumb` : key)));
+    if (!snapshot.exists()) return null;
+    const data = snapshot.data();
+    // Never show a different revision under an old cached profile.
+    if (data.revision !== revision) throw new Error('画像が更新されました。プロフィールを開き直してください。');
+    const bytes = data.data.toUint8Array();
+    if (data.mime !== "image/webp" || !isWebP(bytes) || bytes.length > (thumbnail ? 20000 : 150000)) throw new Error("無効な画像です。");
+    return bytes;
+  });
+  if (!current() || !bytes) return;
   const url = URL.createObjectURL(new Blob([bytes], { type: "image/webp" }));
   urls.add(url);
   target.src = url;
@@ -269,6 +315,24 @@ async function loadImage(uid, key, thumbnail, target, urls, current) {
 }
 
 function renderProfiles(snapshot) {
+  // Only server-confirmed snapshots may refresh reusable public data.
+  if (snapshot.metadata.fromCache || snapshot.metadata.hasPendingWrites) return;
+  const versions = new Map(snapshot.docs.map(record => [record.id, JSON.stringify(record.data())]));
+  for (const [uid, previous] of publicVersions) {
+    if (versions.get(uid) !== previous) {
+      publicProfiles.drop(uid);
+      const next = versions.get(uid);
+      if (!next || JSON.stringify(JSON.parse(previous).images) !== JSON.stringify(JSON.parse(next).images)) imageCache.drop(`${uid}:`);
+      if (user?.uid === uid) ownProfiles.clear();
+      if (detailUid === uid) {
+        detailEpoch++;
+        clearUrls(detailUrls);
+        $('#detail-content').replaceChildren(make('p', '公開状態または内容が変わりました。閉じてから開き直してください。'));
+      }
+    }
+  }
+  publicVersions = versions;
+  snapshot.forEach(record => publicProfiles.set(record.id, record.data()));
   const epoch = ++gridEpoch;
   clearUrls(gridUrls);
   const grid = $("#profile-grid");
@@ -287,7 +351,7 @@ function renderProfiles(snapshot) {
     image.onload = () => { fallback.hidden = true; };
     frame.append(fallback, image);
     const thumbnailKey = IMAGE_KEYS.find(key => data.images[key]);
-    if (thumbnailKey) loadImage(record.id, thumbnailKey, true, image, gridUrls, () => epoch === gridEpoch).catch(() => {});
+    if (thumbnailKey) loadImage(record.id, thumbnailKey, true, image, gridUrls, () => epoch === gridEpoch, data.images[thumbnailKey]).catch(() => {});
     const content = make("div", undefined, "profile-content");
     const view = make("button", "見る", "button button-small");
     view.type = "button";
@@ -300,15 +364,20 @@ function renderProfiles(snapshot) {
 
 async function showDetail(uid) {
   const epoch = ++detailEpoch;
+  detailUid = uid;
   clearUrls(detailUrls);
   const content = $("#detail-content");
   content.replaceChildren(make("p", "プロフィールを読み込んでいます…"));
   if (!detail.open) detail.showModal();
   try {
-    const snapshot = await F.getDocFromServer(F.doc(db, "profiles", uid));
-    if (epoch !== detailEpoch) return;
-    if (!snapshot.exists()) throw new Error("このプロフィールは見つかりませんでした。");
-    const data = snapshot.data();
+    let data = publicProfiles.peek(uid);
+    if (!data) {
+      const snapshot = await readWithDeadline(F.getDocFromServer(F.doc(db, 'profiles', uid)));
+      if (epoch !== detailEpoch) return;
+      if (!snapshot.exists()) throw new Error('このプロフィールは見つかりませんでした。');
+      data = snapshot.data();
+      if (data.published) publicProfiles.set(uid, data);
+    }
     const title = make("h2", data.name, "user-text");
     title.id = "detail-title";
     content.replaceChildren(title);
@@ -321,7 +390,7 @@ async function showDetail(uid) {
       content.append(img, status);
       img.onload = () => status.remove();
       img.onerror = () => { status.textContent = "この画像を表示できませんでした。"; };
-      loadImage(uid, key, false, img, detailUrls, () => epoch === detailEpoch)
+      loadImage(uid, key, false, img, detailUrls, () => epoch === detailEpoch, data.images[key])
         .then(() => { if (epoch === detailEpoch && !img.src) status.textContent = "画像は未設定、または削除済みです。"; })
         .catch(() => { if (epoch === detailEpoch) status.textContent = "画像を取得できませんでした。閉じてからもう一度お試しください。"; });
     };
@@ -363,7 +432,7 @@ $("#editor-close").addEventListener("click", () => { if (mayClose()) editor.clos
 editor.addEventListener("cancel", event => { if (!mayClose()) event.preventDefault(); });
 editor.addEventListener("close", () => { editorEpoch++; clearUrls(editorUrls); pending.clear(); dirty = false; });
 $("#detail-close").addEventListener("click", () => detail.close());
-detail.addEventListener("close", () => { detailEpoch++; clearUrls(detailUrls); $("#detail-content").replaceChildren(); });
+detail.addEventListener("close", () => { detailUid = null; detailEpoch++; clearUrls(detailUrls); $("#detail-content").replaceChildren(); });
 window.addEventListener("beforeunload", event => {
   if (dirty || saving || imageTasks) { event.preventDefault(); event.returnValue = ""; }
 });
@@ -385,7 +454,8 @@ async function boot() {
     F = firestore;
     const app = core.initializeApp(firebaseConfig);
     auth = A.getAuth(app);
-    db = F.getFirestore(app);
+    db = F.initializeFirestore(app, { experimentalAutoDetectLongPolling: true,
+      experimentalLongPollingOptions: { timeoutSeconds: 5 } });
     // ディスクへの永続キャッシュは有効化しない。端末共有時の残存を減らす。
     $("#login-button").addEventListener("click", signIn);
     $("#join-button").addEventListener("click", openEditor);
@@ -395,7 +465,26 @@ async function boot() {
       if (editor.open && !mayClose()) return;
       try { await A.signOut(auth); } catch (error) { message(describe(error)); }
     });
+    let stopProfiles;
+    const watchProfiles = () => {
+      stopProfiles?.();
+      stopProfiles = F.onSnapshot(F.query(F.collection(db, 'profiles'), F.where('published', '==', true), F.limit(6)),
+        { includeMetadataChanges: true }, renderProfiles, error => {
+          publicProfiles.clear(); imageCache.clear(); publicVersions.clear();
+          detail.close();
+          gridEpoch++;
+          clearUrls(gridUrls);
+          $('#profile-grid').replaceChildren(make('p', 'プロフィールを読み込めませんでした。設定・通信を確認してページを再読み込みしてください。'));
+          $('#list-label').textContent = '取得できませんでした';
+          message(describe(error));
+        });
+    };
     A.onAuthStateChanged(auth, current => {
+      authEpoch++;
+      memberships.clear(); ownProfiles.clear(); publicProfiles.clear(); imageCache.clear();
+      publicVersions.clear();
+      gridEpoch++;
+      clearUrls(gridUrls);
       user = current;
       editor.close();
       detail.close();
@@ -406,13 +495,9 @@ async function boot() {
       $("#edit-button").hidden = !current;
       $("#logout-button").hidden = !current;
       message(current ? "ログインしました。「自分のプロフィール」から参加・編集できます。" : "閲覧はログイン不要です。投稿する方はGoogleでログインしてください。");
-    });
-    F.onSnapshot(F.query(F.collection(db, "profiles"), F.where("published", "==", true), F.limit(6)), renderProfiles, error => {
-      gridEpoch++;
-      clearUrls(gridUrls);
-      $("#profile-grid").replaceChildren(make("p", "プロフィールを読み込めませんでした。設定・通信を確認してページを再読み込みしてください。"));
-      $("#list-label").textContent = "取得できませんでした";
-      message(describe(error));
+      // Read only: signing in alone must never claim a participant seat.
+      if (current) readOwnProfile(current.uid).catch(() => {});
+      watchProfiles();
     });
     const shared = new URL(location.href).searchParams.get("profile");
     if (shared && /^[A-Za-z0-9_-]{1,128}$/.test(shared)) {
