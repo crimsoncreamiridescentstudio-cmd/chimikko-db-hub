@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <rect width="512" height="512" fill="#fffcf5"/>
+  <rect x="118" y="118" width="292" height="292" rx="64" fill="#4f3b2d"/>
+  <rect x="106" y="106" width="292" height="292" rx="64" fill="#f3b75b" stroke="#4f3b2d" stroke-width="10"/>
+  <!-- Lucide sparkles, ISC license; scaled 1.75 stroke. -->
+  <g transform="translate(154 154) scale(8.5)" fill="none" stroke="#4f3b2d" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M9.937 15.5a2 2 0 0 0-1.437-1.437L2.5 12.516a.5.5 0 0 1 0-.968l6-1.548A2 2 0 0 0 9.937 8.563l1.547-6a.5.5 0 0 1 .968 0l1.548 6A2 2 0 0 0 15.437 10l6 1.548a.5.5 0 0 1 0 .968l-6 1.547A2 2 0 0 0 14 15.5l-1.548 6a.5.5 0 0 1-.968 0z"/>
+    <path d="M20 2v4m2-2h-4M4 18v4m2-2H2"/>
+  </g>
+</svg>
