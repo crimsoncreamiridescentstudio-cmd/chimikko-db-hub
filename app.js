@@ -6,6 +6,7 @@ const $ = selector => document.querySelector(selector);
 const form = $("#profile-form");
 const editor = $("#editor-dialog");
 const detail = $("#detail-dialog");
+const consent = $("#consent-dialog");
 const message = text => { $("#app-message").textContent = text; };
 const editorMessage = text => { $("#editor-message").textContent = text; };
 const make = (tag, text, className) => {
@@ -60,10 +61,19 @@ function emptyProfile() {
 }
 
 async function signIn() {
+  consent.close();
   $("#login-button").disabled = true;
   try { await A.signInWithPopup(auth, new A.GoogleAuthProvider()); }
   catch (error) { message(describe(error)); }
   finally { $("#login-button").disabled = false; }
+}
+
+function requestSignIn() {
+  const checkbox = $("#consent-checkbox");
+  checkbox.checked = false;
+  $("#consent-login").disabled = true;
+  consent.showModal();
+  checkbox.focus();
 }
 
 // 六つの固定席をトランザクションとサーバー側ルールで確保。
@@ -170,7 +180,7 @@ function imageControl(key, title) {
 }
 
 async function openEditor() {
-  if (!user) { await signIn(); return; }
+  if (!user) { requestSignIn(); return; }
   if (opening) return;
   opening = true;
   const uid = user.uid;
@@ -457,7 +467,12 @@ async function boot() {
     db = F.initializeFirestore(app, { experimentalAutoDetectLongPolling: true,
       experimentalLongPollingOptions: { timeoutSeconds: 5 } });
     // ディスクへの永続キャッシュは有効化しない。端末共有時の残存を減らす。
-    $("#login-button").addEventListener("click", signIn);
+    $("#login-button").addEventListener("click", requestSignIn);
+    $("#consent-checkbox").addEventListener("change", event => {
+      $("#consent-login").disabled = !event.currentTarget.checked;
+    });
+    $("#consent-login").addEventListener("click", signIn);
+    $("#consent-cancel").addEventListener("click", () => consent.close());
     $("#join-button").addEventListener("click", openEditor);
     $("#edit-button").addEventListener("click", openEditor);
     $("#logout-button").addEventListener("click", async () => {

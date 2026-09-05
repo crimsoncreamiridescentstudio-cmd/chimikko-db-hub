@@ -4,7 +4,10 @@ import { resolve } from 'node:path';
 import { build } from 'esbuild';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
-const files = ['index.html', 'app.css', 'app.js', 'image-codec.js', 'firebase-config.js', 'webp-client.js', 'read-cache.js'];
+const files = [
+  'index.html', 'terms.html', 'privacy.html', 'content-guidelines.html', 'legal.css',
+  'app.css', 'app.js', 'image-codec.js', 'firebase-config.js', 'webp-client.js', 'read-cache.js'
+];
 await mkdir(resolve(root, 'dist'), { recursive: true });
 for (const file of files) await copyFile(resolve(root, file), resolve(root, 'dist', file));
 await build({ entryPoints: [resolve(root, 'webp-worker.js')], outfile: resolve(root, 'dist/webp-worker.js'),
