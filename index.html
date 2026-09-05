@@ -3,49 +3,712 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>ちみHub — ちっちゃな創作掲示板</title>
+  <meta name="description" content="ちみHubは、少人数で試す創作者向けプロフィール掲示板です。">
+  <title>ちみHub｜ちいさな創作プロフィール掲示板</title>
+
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Kaisei+Opti:wght@400;500;700&family=M+PLUS+Rounded+1c:wght@400;500;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Kaisei+Opti:wght@500;700&family=M+PLUS+2:wght@400;500;600;700&display=swap" rel="stylesheet">
+
   <style>
-    :root{--paper:#fffcf5;--cream:#fcf0d1;--ink:#48382f;--muted:#806f63;--line:#eadcc0;--orange:#e68148;--pink:#e97e89;--aqua:#60aea5;--purple:#9282c5;--shadow:0 12px 30px rgba(105,73,46,.10)}
-    *{box-sizing:border-box} body{margin:0;background:var(--paper);color:var(--ink);font-family:"M PLUS Rounded 1c",sans-serif;line-height:1.65}
-    button{font:inherit;cursor:pointer} .wrap{width:min(1120px,calc(100% - 32px));margin:auto}
-    header{padding:18px 0;border-bottom:1px solid var(--line);background:rgba(255,252,245,.92);position:sticky;top:0;z-index:5;backdrop-filter:blur(10px)}
-    .bar{display:flex;align-items:center;justify-content:space-between;gap:16px}.brand{display:flex;align-items:center;gap:11px;font-family:"Kaisei Opti",serif;font-weight:700;font-size:23px;letter-spacing:.04em}.mark{width:38px;height:38px;display:grid;place-items:center;border-radius:13px;background:var(--orange);color:#fff;font-family:serif;box-shadow:inset 0 -3px 0 rgba(0,0,0,.08)}
-    .nav{display:flex;gap:7px;align-items:center}.nav button{border:0;background:transparent;border-radius:999px;padding:8px 12px;color:var(--muted);font-weight:700}.nav button.active,.nav button:hover{background:var(--cream);color:var(--ink)}.user{width:36px;height:36px;border-radius:50%;border:2px solid #fff;background:#a9d8d3;display:grid;place-items:center;font-size:17px}
-    .hero{padding:48px 0 30px;display:grid;grid-template-columns:1.25fr .75fr;gap:28px;align-items:end}.eyebrow{color:var(--orange);font-weight:800;font-size:13px;letter-spacing:.1em}.hero h1{font:700 clamp(33px,6vw,62px)/1.18 "Kaisei Opti",serif;margin:8px 0 15px;letter-spacing:.04em}.hero p{margin:0;color:var(--muted);max-width:38em}.notice{background:var(--cream);border:1px solid var(--line);padding:17px 19px;border-radius:20px;font-size:14px;box-shadow:var(--shadow)}.notice strong{display:block;color:#b95f36;margin-bottom:4px}
-    main{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:26px;padding-bottom:72px}.section-title{display:flex;align-items:end;justify-content:space-between;margin:8px 0 14px}.section-title h2{font:700 24px "Kaisei Opti",serif;margin:0}.section-title span{font-size:13px;color:var(--muted)}
-    .feed{display:grid;gap:14px}.post{background:#fff;border:1px solid var(--line);border-radius:22px;padding:20px;box-shadow:0 8px 22px rgba(105,73,46,.06);transition:.2s}.post:hover{transform:translateY(-2px);box-shadow:var(--shadow)}.post-top{display:flex;gap:10px;align-items:center}.avatar{width:42px;height:42px;border-radius:15px;display:grid;place-items:center;font-size:20px}.peach{background:#ffe0cf}.mint{background:#d9f0e7}.lilac{background:#e7e0fa}.post .name{font-weight:800;font-size:14px}.post time{font-size:12px;color:var(--muted);display:block}.post h3{font:700 21px/1.35 "Kaisei Opti",serif;margin:15px 0 8px}.post p{font-size:14px;margin:0;color:#66564d}.tags{display:flex;flex-wrap:wrap;gap:7px;margin-top:14px}.tag{font-size:12px;border-radius:99px;padding:3px 10px;background:#fff5e9;color:#a85d37;border:1px solid #f5d5bd}.tag.aqua{background:#edf8f6;border-color:#c9e9e4;color:#438e85}.tag.purple{background:#f2effa;border-color:#ddd5f3;color:#7060a4}.post-bottom{display:flex;justify-content:space-between;align-items:center;margin-top:15px;padding-top:13px;border-top:1px dashed var(--line);font-size:13px;color:var(--muted)}.heart{border:0;background:transparent;color:var(--pink);font-weight:700}.heart.pop{animation:pop .28s ease-out}@keyframes pop{50%{transform:scale(1.35)}}
-    aside{display:grid;align-content:start;gap:14px}.side{background:var(--cream);border:1px solid var(--line);border-radius:20px;padding:18px}.side h3{font:700 18px "Kaisei Opti",serif;margin:0 0 9px}.side p{margin:0;font-size:13px;color:var(--muted)}.meter{height:8px;background:#ead9bc;border-radius:99px;margin:13px 0 7px;overflow:hidden}.meter i{display:block;width:80%;height:100%;border-radius:inherit;background:linear-gradient(90deg,var(--orange),#edbb63)}.tiny{font-size:12px;color:var(--muted)}.world{display:flex;align-items:center;gap:10px;padding:10px 0;border-top:1px dashed #dfccad}.world:first-of-type{border-top:0;padding-top:2px}.world b{font-size:13px}.orb{width:35px;height:35px;border-radius:50%;display:grid;place-items:center;background:#fff}.new{width:100%;padding:11px;border:0;border-radius:13px;background:var(--orange);color:#fff;font-weight:800;box-shadow:inset 0 -3px 0 rgba(0,0,0,.1)}.new:hover{filter:brightness(1.05)}
-    dialog{border:0;border-radius:24px;padding:0;width:min(480px,calc(100% - 32px));box-shadow:0 24px 70px rgba(50,30,15,.3)}dialog::backdrop{background:rgba(52,38,25,.35);backdrop-filter:blur(3px)}.modal{padding:25px;background:var(--paper)}.modal h2{font:700 26px "Kaisei Opti",serif;margin:0 0 8px}.modal p{color:var(--muted);font-size:14px}.modal label{display:block;font-weight:700;font-size:13px;margin:13px 0 6px}.modal input,.modal textarea{width:100%;border:1px solid var(--line);border-radius:12px;padding:10px;background:#fff;font:inherit}.modal textarea{height:90px;resize:vertical}.modal-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:16px}.cancel{border:0;background:transparent;padding:10px;color:var(--muted)}.send{border:0;background:var(--orange);color:#fff;padding:10px 15px;border-radius:12px;font-weight:800}
-    @media(max-width:780px){.hero,main{grid-template-columns:1fr}.hero{padding-top:33px;gap:18px}.nav button:not(.active){display:none}aside{grid-template-columns:1fr 1fr}.notice{max-width:none}}@media(max-width:520px){.wrap{width:min(100% - 22px,1120px)}header{padding:12px 0}.brand{font-size:19px}.mark{width:33px;height:33px}.hero h1{font-size:37px}aside{grid-template-columns:1fr}.post{padding:16px}}
+    :root {
+      --background: #fffcf5;
+      --sub-background: #fcf0d1;
+      --card: #ffffff;
+      --ink: #4f3b2d;
+      --muted: #806b5d;
+      --accent: #f3b75b;
+      --pink: #f6b8ad;
+      --green: #b9d8ae;
+      --border: 1.75px solid var(--ink);
+      --shadow-small: 3px 3px 0 var(--ink);
+      --shadow-large: 6px 6px 0 var(--ink);
+      --radius-small: 10px;
+      --radius-medium: 16px;
+      --radius-large: 24px;
+    }
+
+    * { box-sizing: border-box; }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      margin: 0;
+      background:
+        radial-gradient(circle at 20px 20px, rgba(79, 59, 45, 0.055) 1.4px, transparent 1.5px),
+        var(--background);
+      background-size: 24px 24px;
+      color: var(--ink);
+      font-family: "M PLUS 2", sans-serif;
+      line-height: 1.75;
+    }
+
+    button, a { font: inherit; }
+    button { color: inherit; }
+    svg { stroke-width: 1.75; }
+
+    .skip-link {
+      position: fixed;
+      top: 10px;
+      left: 10px;
+      z-index: 100;
+      transform: translateY(-150%);
+      padding: 8px 12px;
+      background: var(--card);
+      border: var(--border);
+      border-radius: var(--radius-small);
+      color: var(--ink);
+    }
+
+    .skip-link:focus { transform: translateY(0); }
+
+    header {
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      background: rgba(255, 252, 245, 0.94);
+      border-bottom: var(--border);
+      backdrop-filter: blur(10px);
+    }
+
+    .header-inner {
+      width: min(1120px, calc(100% - 32px));
+      min-height: 72px;
+      margin: auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+    }
+
+    .brand {
+      display: inline-flex;
+      align-items: center;
+      gap: 11px;
+      color: var(--ink);
+      text-decoration: none;
+      font-family: "Kaisei Opti", serif;
+      font-size: 1.28rem;
+      font-weight: 700;
+    }
+
+    .brand-mark {
+      width: 40px;
+      height: 40px;
+      display: grid;
+      place-items: center;
+      background: var(--accent);
+      border: var(--border);
+      border-radius: 13px;
+      box-shadow: 2px 2px 0 var(--ink);
+    }
+
+    .brand-mark svg { width: 22px; height: 22px; }
+
+    nav {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .nav-link {
+      min-height: 42px;
+      padding: 7px 12px;
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      color: var(--ink);
+      border-radius: 10px;
+      text-decoration: none;
+      font-size: 0.9rem;
+      font-weight: 700;
+    }
+
+    .nav-link:hover { background: var(--sub-background); }
+    .nav-link svg { width: 18px; height: 18px; }
+
+    .button {
+      min-height: 46px;
+      padding: 10px 17px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      background: var(--card);
+      color: var(--ink);
+      border: var(--border);
+      border-radius: var(--radius-small);
+      box-shadow: var(--shadow-small);
+      text-decoration: none;
+      font-weight: 700;
+      cursor: pointer;
+      transition: transform 120ms ease, box-shadow 120ms ease, background 120ms ease;
+    }
+
+    .button:hover {
+      transform: translate(2px, 2px);
+      box-shadow: 1px 1px 0 var(--ink);
+    }
+
+    .button:active {
+      transform: translate(3px, 3px);
+      box-shadow: none;
+    }
+
+    .button-primary { background: var(--accent); }
+
+    .button-small {
+      min-height: 40px;
+      padding: 7px 13px;
+      font-size: 0.88rem;
+      box-shadow: 2px 2px 0 var(--ink);
+    }
+
+    main {
+      width: min(1120px, calc(100% - 32px));
+      margin: auto;
+      padding: 56px 0 96px;
+    }
+
+    .hero {
+      position: relative;
+      padding: clamp(32px, 7vw, 72px);
+      overflow: hidden;
+      background: var(--card);
+      border: var(--border);
+      border-radius: var(--radius-large);
+      box-shadow: var(--shadow-large);
+    }
+
+    .hero::before,
+    .hero::after {
+      content: "";
+      position: absolute;
+      border: var(--border);
+      border-radius: 50%;
+      pointer-events: none;
+    }
+
+    .hero::before {
+      width: 150px;
+      height: 150px;
+      top: -55px;
+      right: -35px;
+      background: var(--pink);
+    }
+
+    .hero::after {
+      width: 85px;
+      height: 85px;
+      right: 110px;
+      bottom: -38px;
+      background: var(--green);
+    }
+
+    .eyebrow {
+      width: fit-content;
+      margin: 0 0 18px;
+      padding: 5px 12px;
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      background: var(--sub-background);
+      border: var(--border);
+      border-radius: 999px;
+      font-size: 0.82rem;
+      font-weight: 700;
+    }
+
+    h1, h2, h3 {
+      margin-top: 0;
+      font-family: "Kaisei Opti", serif;
+      font-weight: 700;
+      line-height: 1.5;
+      letter-spacing: 0.035em;
+    }
+
+    h1 {
+      max-width: 760px;
+      margin-bottom: 20px;
+      font-size: clamp(2rem, 7vw, 4.25rem);
+      line-height: 1.3;
+    }
+
+    .hero-description {
+      max-width: 650px;
+      margin: 0;
+      color: var(--muted);
+      font-size: clamp(1rem, 2vw, 1.12rem);
+      font-weight: 500;
+    }
+
+    .hero-actions {
+      position: relative;
+      z-index: 2;
+      margin-top: 30px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 14px;
+    }
+
+    .status-bar {
+      margin-top: 28px;
+      padding: 18px 22px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 18px;
+      background: var(--sub-background);
+      border: var(--border);
+      border-radius: var(--radius-medium);
+    }
+
+    .status-label {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 700;
+    }
+
+    .status-label svg { width: 20px; height: 20px; }
+
+    .status-number {
+      font-family: "Kaisei Opti", serif;
+      font-size: 1.15rem;
+      font-weight: 700;
+    }
+
+    .progress {
+      width: min(320px, 42%);
+      height: 14px;
+      overflow: hidden;
+      background: var(--card);
+      border: var(--border);
+      border-radius: 999px;
+    }
+
+    .progress-fill {
+      width: 20%;
+      height: 100%;
+      background: var(--accent);
+      border-right: var(--border);
+    }
+
+    .section { margin-top: 72px; }
+
+    .section-heading {
+      margin-bottom: 24px;
+      display: flex;
+      align-items: end;
+      justify-content: space-between;
+      gap: 20px;
+    }
+
+    .section-heading h2 {
+      margin-bottom: 4px;
+      font-size: clamp(1.55rem, 4vw, 2.15rem);
+    }
+
+    .section-heading p {
+      margin: 0;
+      color: var(--muted);
+    }
+
+    .demo-note {
+      padding: 4px 10px;
+      background: var(--sub-background);
+      border: var(--border);
+      border-radius: 999px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .profile-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 22px;
+    }
+
+    .profile-card {
+      padding: 20px;
+      background: var(--card);
+      border: var(--border);
+      border-radius: var(--radius-medium);
+      box-shadow: var(--shadow-small);
+      transition: transform 150ms ease, box-shadow 150ms ease;
+    }
+
+    .profile-card:hover {
+      transform: translateY(-4px);
+      box-shadow: 5px 7px 0 var(--ink);
+    }
+
+    .profile-image {
+      aspect-ratio: 4 / 3;
+      display: grid;
+      place-items: center;
+      background: var(--sub-background);
+      border: var(--border);
+      border-radius: 12px;
+    }
+
+    .profile-image.pink { background: #fde4df; }
+    .profile-image.green { background: #e2f0dc; }
+    .profile-image svg { width: 54px; height: 54px; }
+
+    .profile-content { padding-top: 18px; }
+
+    .profile-name {
+      margin-bottom: 7px;
+      font-size: 1.3rem;
+    }
+
+    .profile-text {
+      min-height: 4.9em;
+      margin: 0;
+      color: var(--muted);
+      font-size: 0.92rem;
+    }
+
+    .tag-list {
+      margin: 14px 0 18px;
+      padding: 0;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 7px;
+      list-style: none;
+    }
+
+    .tag {
+      padding: 3px 9px;
+      background: var(--sub-background);
+      border: var(--border);
+      border-radius: 999px;
+      font-size: 0.75rem;
+      font-weight: 700;
+    }
+
+    .card-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .character-count {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      color: var(--muted);
+      font-size: 0.82rem;
+      font-weight: 600;
+    }
+
+    .character-count svg { width: 17px; height: 17px; }
+
+    .feature-panel {
+      padding: clamp(24px, 5vw, 42px);
+      display: grid;
+      grid-template-columns: 0.86fr 1.14fr;
+      gap: 36px;
+      align-items: center;
+      background: var(--card);
+      border: var(--border);
+      border-radius: var(--radius-large);
+      box-shadow: var(--shadow-large);
+    }
+
+    .feature-copy p { color: var(--muted); }
+
+    .feature-list {
+      margin: 0;
+      padding: 0;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      list-style: none;
+    }
+
+    .feature-item {
+      min-height: 76px;
+      padding: 14px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      background: var(--sub-background);
+      border: var(--border);
+      border-radius: var(--radius-small);
+      font-size: 0.9rem;
+      font-weight: 600;
+    }
+
+    .feature-icon {
+      width: 38px;
+      height: 38px;
+      flex: 0 0 38px;
+      display: grid;
+      place-items: center;
+      background: var(--card);
+      border: var(--border);
+      border-radius: 10px;
+    }
+
+    .feature-icon svg { width: 20px; height: 20px; }
+
+    footer {
+      padding: 30px 16px;
+      background: var(--sub-background);
+      border-top: var(--border);
+      text-align: center;
+      font-size: 0.85rem;
+      font-weight: 600;
+    }
+
+    .footer-links {
+      margin-bottom: 9px;
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 8px 18px;
+    }
+
+    .footer-links a { color: var(--ink); }
+    footer p { margin: 4px 0; color: var(--muted); }
+
+    dialog {
+      width: min(460px, calc(100% - 32px));
+      padding: 0;
+      background: var(--card);
+      border: var(--border);
+      border-radius: var(--radius-large);
+      box-shadow: var(--shadow-large);
+      color: var(--ink);
+    }
+
+    dialog::backdrop {
+      background: rgba(79, 59, 45, 0.36);
+      backdrop-filter: blur(3px);
+    }
+
+    .dialog-inner { padding: 28px; }
+    .dialog-inner h2 { margin-bottom: 8px; font-size: 1.55rem; }
+    .dialog-inner p { margin: 0 0 20px; color: var(--muted); }
+
+    @media (max-width: 820px) {
+      .profile-grid { grid-template-columns: 1fr; }
+      .feature-panel { grid-template-columns: 1fr; }
+      .profile-text { min-height: auto; }
+    }
+
+    @media (max-width: 620px) {
+      .nav-link span { display: none; }
+      main { padding-top: 32px; }
+      .hero { padding: 30px 24px 36px; }
+      .hero::before { width: 100px; height: 100px; }
+      .status-bar { align-items: stretch; flex-direction: column; }
+      .progress { width: 100%; }
+      .section-heading { align-items: start; flex-direction: column; }
+      .feature-list { grid-template-columns: 1fr; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        scroll-behavior: auto !important;
+        transition: none !important;
+      }
+    }
   </style>
 </head>
+
 <body>
-  <header><div class="wrap bar"><div class="brand"><span class="mark">ち</span>ちみHub</div><nav class="nav"><button class="active">ひろば</button><button>せかい帳</button><button>おしらせ</button><span class="user">🫧</span></nav></div></header>
-  <div class="wrap hero">
-    <div><div class="eyebrow">TINY CREATOR HUB · DEMO</div><h1>ちいさな世界を、<br>そっと置いていこう。</h1><p>先着5名だけの、小さな創作者向けテスト掲示板。代表キャラと世界観メモを一つずつ、気軽に見せあえる場所です。</p></div>
-    <div class="notice"><strong>🌱 ただいまテスト公開中</strong>閲覧はだれでも歓迎。投稿・プロフィール作成は、招待された参加者のみ使える予定です。</div>
-  </div>
-  <main class="wrap">
-    <section><div class="section-title"><h2>みんなのひろば</h2><span>最新 3 件</span></div>
-      <div class="feed">
-        <article class="post"><div class="post-top"><span class="avatar peach">🌙</span><div><span class="name">くりむ</span><time>たった今</time></div></div><h3>Abilitiaの「いつもの」を整理中！</h3><p>剣と魔法、銃も科学もある世界。願いがチカラに変わる場所で、今日もいろんな人が気ままに暮らしているぞ。</p><div class="tags"><span class="tag">#創作世界</span><span class="tag aqua">#キャラクター</span><span class="tag purple">#世界観メモ</span></div><div class="post-bottom"><span>💬 2 コメント</span><button class="heart">♡ すき 4</button></div></article>
-        <article class="post"><div class="post-top"><span class="avatar mint">🪐</span><div><span class="name">ミナト</span><time>18分前</time></div></div><h3>浮遊都市の朝ごはんを考えています</h3><p>重力がちょっとだけ弱い街で、落としにくいお皿と、雲を煮出したお茶が定番だったらかわいいかも。</p><div class="tags"><span class="tag">#食文化</span><span class="tag aqua">#SF</span></div><div class="post-bottom"><span>💬 1 コメント</span><button class="heart">♡ すき 3</button></div></article>
-        <article class="post"><div class="post-top"><span class="avatar lilac">🦋</span><div><span class="name">しずく</span><time>昨日</time></div></div><h3>代表キャラを入れ替えました</h3><p>「眠れない夜を集める郵便屋さん」。設定を800文字におさめるの、意外と気持ちいいですね。</p><div class="tags"><span class="tag">#キャラ紹介</span><span class="tag purple">#現代ファンタジー</span></div><div class="post-bottom"><span>💬 4 コメント</span><button class="heart">♡ すき 7</button></div></article>
+  <a class="skip-link" href="#main">本文へ移動</a>
+
+  <header>
+    <div class="header-inner">
+      <a class="brand" href="#" aria-label="ちみHub トップ">
+        <span class="brand-mark"><i data-lucide="sparkles"></i></span>
+        <span>ちみHub</span>
+      </a>
+
+      <nav aria-label="メインナビゲーション">
+        <a class="nav-link" href="#profiles"><i data-lucide="users"></i><span>みんなを見る</span></a>
+        <a class="nav-link" href="#about"><i data-lucide="book-open"></i><span>ちみHubとは</span></a>
+        <button class="button button-small demo-action" type="button">
+          <i data-lucide="log-in"></i><span>ログイン</span>
+        </button>
+      </nav>
+    </div>
+  </header>
+
+  <main id="main">
+    <section class="hero" aria-labelledby="hero-title">
+      <p class="eyebrow"><i data-lucide="sprout"></i> SMALL CREATOR TEST HUB</p>
+      <h1 id="hero-title">ちいさな世界を、<br>そっと並べる場所。</h1>
+      <p class="hero-description">
+        ちみHubは、先着5名で試す小さな創作者向けプロフィール掲示板。
+        あなたと代表キャラクター、世界観のかけらを一枚の展示棚にまとめます。
+      </p>
+
+      <div class="hero-actions">
+        <button class="button button-primary demo-action" type="button">
+          <i data-lucide="plus"></i>プロフィールを作る
+        </button>
+        <a class="button" href="#profiles">
+          <i data-lucide="users"></i>デモを見る
+        </a>
+      </div>
+
+      <div class="status-bar" aria-label="テスト参加状況">
+        <div class="status-label">
+          <i data-lucide="ticket-check"></i>
+          <span>テスト参加枠</span>
+          <span class="status-number">1 / 5</span>
+        </div>
+        <div class="progress" role="progressbar" aria-label="参加枠の使用状況" aria-valuemin="0" aria-valuemax="5" aria-valuenow="1">
+          <div class="progress-fill"></div>
+        </div>
       </div>
     </section>
-    <aside>
-      <section class="side"><h3>ちみHubについて</h3><p>大きくなりすぎないための、試験運用のちいさな居場所。</p><div class="meter"><i></i></div><div class="tiny">参加枠　4 / 5</div></section>
-      <section class="side"><h3>小さなせかい帳</h3><div class="world"><span class="orb">✨</span><div><b>Abilitia</b><div class="tiny">剣と科学と願いの世界</div></div></div><div class="world"><span class="orb">☁️</span><div><b>雲上のアステラ</b><div class="tiny">浮遊都市の物語</div></div></div><div class="world"><span class="orb">📮</span><div><b>よるの郵便局</b><div class="tiny">眠れない夜の集積所</div></div></div></section>
-      <button class="new" id="openModal">＋ ひとこと置く（デモ）</button>
-    </aside>
+
+    <section class="section" id="profiles" aria-labelledby="profiles-title">
+      <div class="section-heading">
+        <div>
+          <h2 id="profiles-title">みんなのプロフィール</h2>
+          <p>創作者と、その人が連れてきた小さな世界たち。</p>
+        </div>
+        <span class="demo-note">表示内容はデモです</span>
+      </div>
+
+      <div class="profile-grid">
+        <article class="profile-card">
+          <div class="profile-image pink" aria-hidden="true"><i data-lucide="sparkles"></i></div>
+          <div class="profile-content">
+            <h3 class="profile-name">くりむ</h3>
+            <p class="profile-text">やさしく、かしこく、おもしろく。キャラクターと世界の仕組みを考えるのが好きです。</p>
+            <ul class="tag-list">
+              <li class="tag">一次創作</li>
+              <li class="tag">世界観構築</li>
+              <li class="tag">お絵描き</li>
+            </ul>
+            <div class="card-footer">
+              <span class="character-count"><i data-lucide="user-round"></i>代表キャラ 3名</span>
+              <button class="button button-small demo-action" type="button">見る</button>
+            </div>
+          </div>
+        </article>
+
+        <article class="profile-card">
+          <div class="profile-image green" aria-hidden="true"><i data-lucide="cloud-sun"></i></div>
+          <div class="profile-content">
+            <h3 class="profile-name">サンプル創作者</h3>
+            <p class="profile-text">雲の上に浮かぶ街と、そこへ手紙を運ぶ郵便屋さんのお話を作っています。</p>
+            <ul class="tag-list">
+              <li class="tag">ファンタジー</li>
+              <li class="tag">街づくり</li>
+            </ul>
+            <div class="card-footer">
+              <span class="character-count"><i data-lucide="user-round"></i>代表キャラ 2名</span>
+              <button class="button button-small demo-action" type="button">見る</button>
+            </div>
+          </div>
+        </article>
+
+        <article class="profile-card">
+          <div class="profile-image" aria-hidden="true"><i data-lucide="orbit"></i></div>
+          <div class="profile-content">
+            <h3 class="profile-name">サンプル創作者</h3>
+            <p class="profile-text">ちいさな惑星を旅する生き物たちと、不思議な食文化を集めています。</p>
+            <ul class="tag-list">
+              <li class="tag">SF</li>
+              <li class="tag">人外</li>
+              <li class="tag">食文化</li>
+            </ul>
+            <div class="card-footer">
+              <span class="character-count"><i data-lucide="user-round"></i>代表キャラ 3名</span>
+              <button class="button button-small demo-action" type="button">見る</button>
+            </div>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section class="section" id="about" aria-labelledby="about-title">
+      <div class="feature-panel">
+        <div class="feature-copy">
+          <p class="eyebrow"><i data-lucide="cookie"></i> TINY & SIMPLE</p>
+          <h2 id="about-title">ちいさいから、気軽に置ける。</h2>
+          <p>
+            大きなSNSほど多機能ではありません。プロフィールと代表キャラ、
+            世界観メモだけを、見やすく小さくまとめるためのテストサービスです。
+          </p>
+        </div>
+
+        <ul class="feature-list">
+          <li class="feature-item">
+            <span class="feature-icon"><i data-lucide="circle-user-round"></i></span>
+            ひとり1プロフィール
+          </li>
+          <li class="feature-item">
+            <span class="feature-icon"><i data-lucide="users-round"></i></span>
+            代表キャラクター3名
+          </li>
+          <li class="feature-item">
+            <span class="feature-icon"><i data-lucide="notebook-pen"></i></span>
+            世界観メモ800文字
+          </li>
+          <li class="feature-item">
+            <span class="feature-icon"><i data-lucide="image-down"></i></span>
+            紹介カードを画像保存
+          </li>
+          <li class="feature-item">
+            <span class="feature-icon"><i data-lucide="share-2"></i></span>
+            プロフィールを共有
+          </li>
+          <li class="feature-item">
+            <span class="feature-icon"><i data-lucide="eye"></i></span>
+            ログインなしで閲覧
+          </li>
+        </ul>
+      </div>
+    </section>
   </main>
-  <dialog id="compose"><form method="dialog" class="modal"><h2>ひとこと置く</h2><p>これは見た目と操作感を確かめるためのデモです。送信内容は保存されません。</p><label>タイトル</label><input placeholder="例：新しいキャラを描きました"><label>ひとこと</label><textarea placeholder="世界のかけらを、気軽に。"></textarea><div class="modal-actions"><button class="cancel">やめる</button><button class="send" value="default">置いてみる</button></div></form></dialog>
+
+  <footer>
+    <div class="footer-links">
+      <a class="demo-action" href="#">利用規約</a>
+      <a class="demo-action" href="#">プライバシーポリシー</a>
+      <a class="demo-action" href="#">投稿ガイドライン</a>
+    </div>
+    <p>ちみHubは現在、少人数でのテスト公開準備中です。</p>
+    <p>© 2026 ちみHub運営</p>
+  </footer>
+
+  <dialog id="demo-dialog" aria-labelledby="dialog-title">
+    <div class="dialog-inner">
+      <h2 id="dialog-title">ただいま準備中です</h2>
+      <p>これはデザインと使い心地を確認するためのデモです。ログインや投稿内容の保存はまだ行いません。</p>
+      <form method="dialog">
+        <button class="button button-primary" value="close">わかった！</button>
+      </form>
+    </div>
+  </dialog>
+
+  <script src="https://unpkg.com/lucide@latest"></script>
   <script>
-    const modal=document.querySelector('#compose');
-    document.querySelector('#openModal').addEventListener('click',()=>modal.showModal());
-    document.querySelectorAll('.heart').forEach(btn=>btn.addEventListener('click',()=>{const n=btn.textContent.match(/\d+/); if(!btn.dataset.liked){btn.dataset.liked='1';btn.textContent='♥ すき '+(Number(n[0])+1);btn.classList.add('pop')}else{btn.dataset.liked='';btn.textContent='♡ すき '+(Number(n[0])-1)}setTimeout(()=>btn.classList.remove('pop'),300)}));
+    lucide.createIcons({ attrs: { "stroke-width": 1.75 } });
+
+    const dialog = document.querySelector("#demo-dialog");
+    document.querySelectorAll(".demo-action").forEach((item) => {
+      item.addEventListener("click", (event) => {
+        event.preventDefault();
+        dialog.showModal();
+      });
+    });
+
+    dialog.addEventListener("click", (event) => {
+      if (event.target === dialog) dialog.close();
+    });
   </script>
-</body></html>
+</body>
+</html>
