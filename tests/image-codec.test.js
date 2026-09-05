@@ -29,7 +29,7 @@ test('encode tiny images, retain transparency path, bound output, and Safari fal
   };
   globalThis.document = { createElement() {
     return { width: 0, height: 0,
-      getContext() { return { clearRect() {}, drawImage() {} }; },
+      getContext() { return { clearRect() {}, drawImage() {}, getImageData() { return { data: new Uint8ClampedArray(4), width: 1, height: 1 }; } }; },
       toBlob(callback) { callback(new Blob([bytes], { type: supported ? 'image/webp' : 'image/png' })); }
     };
   } };
@@ -39,10 +39,18 @@ test('encode tiny images, retain transparency path, bound output, and Safari fal
     assert.equal(result.full.height, 60);
     assert.equal(result.thumb.bytes.length, 100);
     supported = false;
-    const fallback = await prepareImage(new File([bytes], 'image.webp', { type: 'image/webp' }));
+    let fallbackCalls = 0;
+    const wasm = await prepareImage(new File([bytes], 'image.png', { type: 'image/png' }), {
+      encodePixels: async () => { fallbackCalls++; return bytes; }
+    });
+    assert.equal(fallbackCalls, 2);
+    assert.equal(wasm.full.bytes.length, 100);
+    assert.equal(wasm.thumb.bytes.length, 100);
+    const unavailable = { encodePixels: async () => { throw new Error('変換器を読み込めません'); } };
+    const fallback = await prepareImage(new File([bytes], 'image.webp', { type: 'image/webp' }), unavailable);
     assert.equal(fallback.thumb, null);
     assert.deepEqual(fallback.full.bytes, bytes);
-    await assert.rejects(prepareImage(new File([bytes], 'image.png', { type: 'image/png' })), /未対応/);
+    await assert.rejects(prepareImage(new File([bytes], 'image.png', { type: 'image/png' }), unavailable), /読み込めません/);
   } finally {
     globalThis.Image = originalImage;
     globalThis.document = originalDocument;

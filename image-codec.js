@@ -1,3 +1,4 @@
+import { encodeWebPInWorker } from './webp-client.js';
 export const IMAGE_KEYS = ["avatar", "char1", "char2", "char3"];
 export const MAX_IMAGE_BYTES = 150000;
 export const MAX_THUMB_BYTES = 20000;
@@ -17,7 +18,7 @@ function loadImage(url) {
   });
 }
 
-async function encode(img, edge, budget) {
+async function encode(img, edge, budget, options, support) {
   const canvas = document.createElement("canvas");
   const context = canvas.getContext("2d");
   if (!context) throw new Error("このブラウザでは画像を変換できません。");
@@ -28,32 +29,40 @@ async function encode(img, edge, budget) {
     context.clearRect(0, 0, canvas.width, canvas.height);
     context.drawImage(img, 0, 0, canvas.width, canvas.height);
     for (const quality of [.86, .72, .58, .44]) {
-      const blob = await new Promise(resolve => canvas.toBlob(resolve, "image/webp", quality));
-      if (!blob || blob.type !== "image/webp") {
-        throw new Error("このブラウザはWebP変換に未対応です。別のブラウザで試すか、150KB以下・長辺1000px以下のWebPを選んでください。");
+      let bytes;
+      if (support.native !== false) {
+        const blob = await new Promise(resolve => canvas.toBlob(resolve, "image/webp", quality));
+        support.native = !!blob && blob.type === 'image/webp';
+        if (support.native) bytes = new Uint8Array(await blob.arrayBuffer());
       }
-      if (blob.size <= budget) return { bytes: new Uint8Array(await blob.arrayBuffer()), width: canvas.width, height: canvas.height };
+      if (!support.native) {
+        options.onProgress?.('端末内のWebP変換器で圧縮しています…初回は変換器を読み込みます。');
+        bytes = await (options.encodePixels || encodeWebPInWorker)(context.getImageData(0, 0, canvas.width, canvas.height), quality);
+      }
+      if (!isWebP(bytes)) throw new Error('WebPへの変換に失敗しました。');
+      if (bytes.length <= budget) return { bytes, width: canvas.width, height: canvas.height };
     }
     if (size <= 80) break;
   }
   throw new Error("容量内に圧縮できませんでした。小さい画像で試してください。");
 }
 
-export async function prepareImage(file) {
+export async function prepareImage(file, options = {}) {
   if (!file || !["image/png", "image/jpeg", "image/webp"].includes(file.type)) throw new Error("PNG・JPEG・WebPを選んでください。アニメーションは静止画になります。");
   if (file.size > INPUT_LIMIT) throw new Error("元画像は12MB以下にしてください。");
   const url = URL.createObjectURL(file);
   try {
     const img = await loadImage(url);
     if (!img.naturalWidth || !img.naturalHeight || img.naturalWidth * img.naturalHeight > 24000000) throw new Error("画像が大きすぎます。2400万画素以下に縮小してください。");
-    // Safari等のWebPエンコード未対応環境でも、既に小さいWebPなら保存可能。
+    // A pre-compressed WebP is retained if loading the local WASM encoder fails.
     const original = file.type === "image/webp" ? new Uint8Array(await file.arrayBuffer()) : null;
     const reusable = original && isWebP(original) && file.size <= MAX_IMAGE_BYTES && Math.max(img.naturalWidth, img.naturalHeight) <= 1000;
     let full;
     let thumb = null;
     try {
-      full = await encode(img, 1000, MAX_IMAGE_BYTES);
-      thumb = await encode(img, 240, MAX_THUMB_BYTES);
+      const support = {};
+      full = await encode(img, 1000, MAX_IMAGE_BYTES, options, support);
+      thumb = await encode(img, 240, MAX_THUMB_BYTES, options, support);
     } catch (error) {
       if (!reusable) throw error;
       full = { bytes: original, width: img.naturalWidth, height: img.naturalHeight };

@@ -135,3 +135,15 @@ test('suspended member cannot write, but may remove own content', async () => {
   await assertFails(setDoc(doc(db, 'profiles', 'member1', 'images', 'char1'), image()));
   await assertSucceeds(deleteDoc(doc(db, 'profiles', 'member1')));
 });
+
+test('parallel reads of five candidate seats remain compatible with existing Rules', async () => {
+  const uid = 'parallel-reader';
+  const db = userDb(uid);
+  await assertSucceeds(runTransaction(db, async tx => {
+    const slots = ['1', '2', '3', '4', '5'];
+    const snapshots = await Promise.all(slots.map(slot => tx.get(doc(db, 'seats', slot))));
+    const slot = slots[snapshots.findIndex(snapshot => !snapshot.exists())];
+    tx.set(doc(db, 'members', uid), { slot, active: true, createdAt: serverTimestamp() });
+    tx.set(doc(db, 'seats', slot), { uid, createdAt: serverTimestamp() });
+  }));
+});

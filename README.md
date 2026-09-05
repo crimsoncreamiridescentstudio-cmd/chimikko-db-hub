@@ -11,6 +11,6 @@ A tiny character database and publishing hub for creators
 
 接続前はデモ表示のままです。[接続・運用手順](SETUP.md)に従ってFirebaseのWeb設定、Firestore Rules、インデックス除外、運営者の参加枠を設定してください。Cloud Storage・Blazeは使いません。
 
-Netlifyは `npm run build` で静的ファイルだけを `dist` へコピーし公開します。テストツールやFirestoreルールを公開ディレクトリに含めません。
+Netlifyは `npm run build` で静的ファイルとiOS向けWebP変換Worker・WASMを `dist` へ出力します。テストツールやFirestoreルールを公開ディレクトリに含めません。画像変換は端末内で実行します。
 
 検証：`npm test`（画像処理）、`npm run test:rules`（Firestoreエミュレーター）。本番Firebaseと実ブラウザでのログイン・画像表示の確認は別途必要です。
