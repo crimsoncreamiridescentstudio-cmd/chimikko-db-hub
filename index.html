@@ -6,6 +6,7 @@
   <meta name="description" content="ちみHubは、少人数で試す創作者向けプロフィール掲示板です。">
   <title>ちみHub｜ちいさな創作プロフィール掲示板</title>
   <link rel="stylesheet" href="app.css">
+  <link rel="modulepreload" href="firebase-sdk.js">
   <link rel="prefetch" href="terms.html" as="document">
   <link rel="prefetch" href="privacy.html" as="document">
   <link rel="prefetch" href="content-guidelines.html" as="document">
@@ -13,7 +14,7 @@
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Kaisei+Opti:wght@500;700&family=M+PLUS+2:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Kaisei+Opti:wght@500;700&family=M+PLUS+2:wght@400;500;600;700&display=swap" rel="preload" as="style" onload="this.onload=null;this.rel='stylesheet'">
 
   <style>
     :root {
@@ -563,7 +564,8 @@
 
   <main id="main">
     <section class="app-status" aria-label="接続とアカウント">
-      <p id="app-message" role="status" aria-live="polite">接続設定を確認しています…</p>
+      <p id="app-message" role="status" aria-live="polite">サイトを準備しています…</p>
+      <button id="reload-app" class="button button-small" type="button" onclick="location.reload()" hidden>ページを再読み込み</button>
       <div class="app-actions">
         <button id="edit-button" class="button" type="button" hidden>自分のプロフィール</button>
         <button id="logout-button" class="button button-small" type="button" hidden>ログアウト</button>
@@ -773,9 +775,17 @@
     </div>
   </dialog>
 
-  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="https://unpkg.com/lucide@latest" async onload="window.lucide?.createIcons({ attrs: { 'stroke-width': 1.75 } })"></script>
   <script>
-    lucide.createIcons({ attrs: { "stroke-width": 1.75 } });
+    // Independent of the app module/CDNs: a failed download must not wait forever.
+    const startupTimer = setTimeout(() => {
+      document.querySelector('#app-message').textContent = 'サイトの読み込みに時間がかかっています。通信を確認して再読み込みしてください。';
+      document.querySelector('#reload-app').hidden = false;
+    }, 15000);
+    window.addEventListener('chimikko-starting', () => {
+      clearTimeout(startupTimer);
+      document.querySelector('#reload-app').hidden = true;
+    }, { once: true });
 
     const dialog = document.querySelector("#demo-dialog");
     document.querySelectorAll(".demo-action").forEach((item) => {

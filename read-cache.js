@@ -38,7 +38,21 @@ export async function readWithDeadline(task, ms = 15000) {
   let timer;
   try {
     return await Promise.race([task, new Promise((_, reject) => {
-      timer = setTimeout(() => reject(new Error('通信に時間がかかっています。接続を確認し、閉じてからもう一度お試しください。')), ms);
+      timer = setTimeout(() => reject(Object.assign(new Error('通信に時間がかかっています。接続を確認して再度お試しください。'), { code: 'deadline-exceeded' })), ms);
     })]);
   } finally { clearTimeout(timer); }
+}
+
+// Retry reads only. Never repeat writes or permission/validation errors.
+export async function retryRead(read, { current = () => true, attempts = 3,
+  timeout = 15000, delay = ms => new Promise(resolve => setTimeout(resolve, ms)) } = {}) {
+  for (let attempt = 0; attempt < attempts; attempt++) {
+    if (!current()) throw Object.assign(new Error('読み込みを終了しました。'), { code: 'cancelled' });
+    try { return await readWithDeadline(Promise.resolve().then(read), timeout); }
+    catch (error) {
+      if (!['unavailable', 'deadline-exceeded', 'auth/network-request-failed'].includes(error?.code)
+        || attempt === attempts - 1 || !current()) throw error;
+      await delay(500 * 2 ** attempt);
+    }
+  }
 }

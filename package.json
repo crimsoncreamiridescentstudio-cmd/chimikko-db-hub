@@ -4,7 +4,7 @@
   "type": "module",
   "scripts": {
     "build": "node scripts/build.mjs",
-    "test": "node --test tests/image-codec.test.js tests/read-cache.test.js tests/webp-wasm.test.js",
+    "test": "node --test tests/image-codec.test.js tests/read-cache.test.js tests/webp-wasm.test.js tests/retry-read.test.js tests/startup.test.js",
     "test:rules": "firebase emulators:exec --only firestore --project demo-chimikko-test \"node --test tests/firestore.test.js\""
   },
   "devDependencies": {

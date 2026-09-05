@@ -1,6 +1,6 @@
 import { firebaseConfig } from "./firebase-config.js";
 import { IMAGE_KEYS, prepareImage, isWebP } from "./image-codec.js";
-import { ReadCache, readWithDeadline } from './read-cache.js';
+import { ReadCache, readWithDeadline, retryRead } from './read-cache.js';
 
 const $ = selector => document.querySelector(selector);
 const form = $("#profile-form");
@@ -61,6 +61,7 @@ function emptyProfile() {
 }
 
 async function signIn() {
+  if (!$('#consent-checkbox').checked) return;
   consent.close();
   $("#login-button").disabled = true;
   try { await A.signInWithPopup(auth, new A.GoogleAuthProvider()); }
@@ -308,8 +309,10 @@ async function deleteProfile() {
 async function loadImage(uid, key, thumbnail, target, urls, current, revision) {
   const cacheKey = `${uid}:${key}:${thumbnail ? 'thumb' : 'full'}:${revision}`;
   const bytes = await imageCache.get(cacheKey, async () => {
-    const snapshot = await readWithDeadline(F.getDocFromServer(F.doc(db, "profiles", uid, "images", thumbnail ? `${key}-thumb` : key)));
-    if (!snapshot.exists()) return null;
+    const session = authEpoch;
+    const snapshot = await retryRead(() => F.getDocFromServer(F.doc(db, "profiles", uid, "images", thumbnail ? `${key}-thumb` : key)),
+      { current: () => session === authEpoch });
+    if (!snapshot.exists()) throw Object.assign(new Error('画像は未設定、または削除済みです。'), { code: 'not-found' });
     const data = snapshot.data();
     // Never show a different revision under an old cached profile.
     if (data.revision !== revision) throw new Error('画像が更新されました。プロフィールを開き直してください。');
@@ -322,6 +325,35 @@ async function loadImage(uid, key, thumbnail, target, urls, current, revision) {
   urls.add(url);
   target.src = url;
   target.hidden = false;
+}
+
+function displayImage(uid, key, thumbnail, img, urls, current, revision, status) {
+  const retry = make('button', '画像を再読み込み', 'button button-small');
+  retry.type = 'button'; retry.hidden = true;
+  status.after(retry);
+  const failed = error => {
+    if (!current()) return;
+    img.hidden = true; status.hidden = false;
+    status.textContent = error?.code === 'not-found' ? error.message : '画像を取得できませんでした。';
+    retry.hidden = false; retry.disabled = false;
+  };
+  img.onload = () => { if (current()) { status.hidden = true; retry.hidden = true; } };
+  img.onerror = () => failed();
+  const run = async () => {
+    if (!current()) return;
+    retry.hidden = true; retry.disabled = true;
+    status.hidden = false; status.textContent = '画像を読み込んでいます…';
+    try {
+      try { await loadImage(uid, key, thumbnail, img, urls, current, revision); }
+      catch (error) {
+        // Missing/temporarily unavailable thumbnails can use the bounded full image.
+        if (!thumbnail || !current() || !['not-found', 'unavailable', 'deadline-exceeded'].includes(error?.code)) throw error;
+        await loadImage(uid, key, false, img, urls, current, revision);
+      }
+    } catch (error) { failed(error); }
+  };
+  retry.addEventListener('click', () => { imageCache.drop(`${uid}:${key}:`); void run(); });
+  void run();
 }
 
 function renderProfiles(snapshot) {
@@ -356,12 +388,11 @@ function renderProfiles(snapshot) {
     const image = document.createElement("img");
     image.alt = `${data.name}のプロフィールまたは代表キャラクター画像`;
     image.hidden = true;
-    image.loading = "lazy";
     const fallback = make("span", "画像は「見る」で確認");
     image.onload = () => { fallback.hidden = true; };
     frame.append(fallback, image);
     const thumbnailKey = IMAGE_KEYS.find(key => data.images[key]);
-    if (thumbnailKey) loadImage(record.id, thumbnailKey, true, image, gridUrls, () => epoch === gridEpoch, data.images[thumbnailKey]).catch(() => {});
+    if (thumbnailKey) displayImage(record.id, thumbnailKey, true, image, gridUrls, () => epoch === gridEpoch, data.images[thumbnailKey], fallback);
     const content = make("div", undefined, "profile-content");
     const view = make("button", "見る", "button button-small");
     view.type = "button";
@@ -382,7 +413,7 @@ async function showDetail(uid) {
   try {
     let data = publicProfiles.peek(uid);
     if (!data) {
-      const snapshot = await readWithDeadline(F.getDocFromServer(F.doc(db, 'profiles', uid)));
+      const snapshot = await retryRead(() => F.getDocFromServer(F.doc(db, 'profiles', uid)), { current: () => epoch === detailEpoch });
       if (epoch !== detailEpoch) return;
       if (!snapshot.exists()) throw new Error('このプロフィールは見つかりませんでした。');
       data = snapshot.data();
@@ -398,11 +429,7 @@ async function showDetail(uid) {
       img.hidden = true;
       const status = make("p", "画像を読み込んでいます…", "help");
       content.append(img, status);
-      img.onload = () => status.remove();
-      img.onerror = () => { status.textContent = "この画像を表示できませんでした。"; };
-      loadImage(uid, key, false, img, detailUrls, () => epoch === detailEpoch, data.images[key])
-        .then(() => { if (epoch === detailEpoch && !img.src) status.textContent = "画像は未設定、または削除済みです。"; })
-        .catch(() => { if (epoch === detailEpoch) status.textContent = "画像を取得できませんでした。閉じてからもう一度お試しください。"; });
+      displayImage(uid, key, false, img, detailUrls, () => epoch === detailEpoch, data.images[key], status);
     };
     addImage("avatar");
     content.append(make("p", data.bio, "user-text"));
@@ -427,7 +454,12 @@ async function showDetail(uid) {
       content.append(label);
     }
   } catch (error) {
-    if (epoch === detailEpoch) content.replaceChildren(make("p", "プロフィールを表示できません。非公開・削除済み、または通信エラーの可能性があります。"));
+    if (epoch === detailEpoch) {
+      const retry = make('button', 'プロフィールを再読み込み', 'button button-small');
+      retry.type = 'button';
+      retry.addEventListener('click', () => { if (epoch === detailEpoch) void showDetail(uid); });
+      content.replaceChildren(make('p', 'プロフィールを表示できません。非公開・削除済み、または通信エラーの可能性があります。'), retry);
+    }
   }
 }
 
@@ -448,6 +480,8 @@ window.addEventListener("beforeunload", event => {
 });
 
 async function boot() {
+  window.dispatchEvent(new Event('chimikko-starting'));
+  message('サイトの機能を準備しています…');
   if (!["apiKey", "authDomain", "projectId", "appId"].every(key => typeof firebaseConfig[key] === "string" && firebaseConfig[key].trim())) {
     message("接続準備中です。以下はデモ表示で、まだログイン・投稿はできません。");
     return;
@@ -455,15 +489,12 @@ async function boot() {
   $("#profile-grid").replaceChildren(make("p", "公開プロフィールを読み込んでいます…"));
   $("#list-label").textContent = "接続中";
   try {
-    const [core, authentication, firestore] = await Promise.all([
-      import("https://www.gstatic.com/firebasejs/12.18.0/firebase-app.js"),
-      import("https://www.gstatic.com/firebasejs/12.18.0/firebase-auth.js"),
-      import("https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js")
-    ]);
-    A = authentication;
-    F = firestore;
+    const core = await readWithDeadline(import('./firebase-sdk.js'), 20000);
+    A = core;
+    F = core;
     const app = core.initializeApp(firebaseConfig);
     auth = A.getAuth(app);
+    message('ログイン状態と公開プロフィールを確認しています…');
     db = F.initializeFirestore(app, { experimentalAutoDetectLongPolling: true,
       experimentalLongPollingOptions: { timeoutSeconds: 5 } });
     // ディスクへの永続キャッシュは有効化しない。端末共有時の残存を減らす。
@@ -480,11 +511,24 @@ async function boot() {
       if (editor.open && !mayClose()) return;
       try { await A.signOut(auth); } catch (error) { message(describe(error)); }
     });
-    let stopProfiles;
+    let stopProfiles, listTimer;
+    let watchEpoch = 0;
     const watchProfiles = () => {
       stopProfiles?.();
+      clearTimeout(listTimer);
+      const epoch = ++watchEpoch;
+      listTimer = setTimeout(() => {
+        $('#list-label').textContent = '公開プロフィールの通信を待っています';
+        $('#reload-app').hidden = false;
+      }, 15000);
       stopProfiles = F.onSnapshot(F.query(F.collection(db, 'profiles'), F.where('published', '==', true), F.limit(6)),
-        { includeMetadataChanges: true }, renderProfiles, error => {
+        { includeMetadataChanges: true }, snapshot => {
+          if (epoch !== watchEpoch) return;
+          if (!snapshot.metadata.fromCache) { clearTimeout(listTimer); }
+          renderProfiles(snapshot);
+        }, error => {
+          if (epoch !== watchEpoch) return;
+          clearTimeout(listTimer);
           publicProfiles.clear(); imageCache.clear(); publicVersions.clear();
           detail.close();
           gridEpoch++;
@@ -492,14 +536,27 @@ async function boot() {
           $('#profile-grid').replaceChildren(make('p', 'プロフィールを読み込めませんでした。設定・通信を確認してページを再読み込みしてください。'));
           $('#list-label').textContent = '取得できませんでした';
           message(describe(error));
+          $('#reload-app').hidden = false;
         });
     };
+    // Attach public reads without waiting for the application's auth callback.
+    watchProfiles();
+    let authResolved = false;
+    const authTimer = setTimeout(() => {
+      message('ログイン状態の確認に時間がかかっています。通信を確認してください。');
+      $('#reload-app').hidden = false;
+    }, 15000);
     A.onAuthStateChanged(auth, current => {
-      authEpoch++;
-      memberships.clear(); ownProfiles.clear(); publicProfiles.clear(); imageCache.clear();
-      publicVersions.clear();
-      gridEpoch++;
-      clearUrls(gridUrls);
+      clearTimeout(authTimer);
+      const initial = !authResolved;
+      authResolved = true;
+      if (!initial) authEpoch++;
+      if (!initial) {
+        memberships.clear(); ownProfiles.clear(); publicProfiles.clear(); imageCache.clear();
+        publicVersions.clear();
+        gridEpoch++;
+        clearUrls(gridUrls);
+      }
       user = current;
       editor.close();
       detail.close();
@@ -512,13 +569,13 @@ async function boot() {
       message(current ? "ログインしました。「自分のプロフィール」から参加・編集できます。" : "閲覧はログイン不要です。投稿する方はGoogleでログインしてください。");
       // Read only: signing in alone must never claim a participant seat.
       if (current) readOwnProfile(current.uid).catch(() => {});
-      watchProfiles();
+      if (!initial) watchProfiles();
     });
     const shared = new URL(location.href).searchParams.get("profile");
     if (shared && /^[A-Za-z0-9_-]{1,128}$/.test(shared)) {
-      await auth.authStateReady();
+      await readWithDeadline(auth.authStateReady());
       await showDetail(shared);
     }
-  } catch (error) { message(`接続できませんでした。${describe(error)}`); }
+  } catch (error) { message(`接続できませんでした。${describe(error)}`); $('#reload-app').hidden = false; }
 }
 boot();

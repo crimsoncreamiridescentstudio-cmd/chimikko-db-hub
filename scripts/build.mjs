@@ -10,6 +10,8 @@ const files = [
 ];
 await mkdir(resolve(root, 'dist'), { recursive: true });
 for (const file of files) await copyFile(resolve(root, file), resolve(root, 'dist', file));
+await build({ entryPoints: [resolve(root, 'firebase-sdk.js')], outfile: resolve(root, 'dist/firebase-sdk.js'),
+  bundle: true, format: 'esm', platform: 'browser', target: 'safari15', minify: true });
 await build({ entryPoints: [resolve(root, 'webp-worker.js')], outfile: resolve(root, 'dist/webp-worker.js'),
   bundle: true, format: 'esm', platform: 'browser', target: 'safari15', minify: true });
 await mkdir(resolve(root, 'dist/vendor'), { recursive: true });
