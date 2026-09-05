@@ -1,0 +1,94 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null && request.auth.token.email_verified == true
+        && request.auth.token.firebase.sign_in_provider == 'google.com';
+    }
+    function owner(uid) { return signedIn() && request.auth.uid == uid; }
+    function member(uid) {
+      return owner(uid) && get(/databases/$(database)/documents/members/$(uid)).data.active == true;
+    }
+    function registration() { return get(/databases/$(database)/documents/settings/registration).data; }
+    function validSlot(slot) { return slot in ['0', '1', '2', '3', '4', '5']; }
+    function canJoin(slot) {
+      return signedIn() && validSlot(slot)
+        && ((slot == '0' && request.auth.uid == registration().adminUid)
+          || (slot != '0' && request.auth.uid != registration().adminUid && registration().open == true));
+    }
+    function text(value, max) { return value is string && value.size() <= max; }
+    function character(value) {
+      return value is map && value.keys().hasAll(['name', 'description'])
+        && value.keys().hasOnly(['name', 'description']) && text(value.name, 40) && text(value.description, 300);
+    }
+    function imageMap(value) {
+      return value is map && value.keys().hasAll(['avatar', 'char1', 'char2', 'char3'])
+        && value.keys().hasOnly(['avatar', 'char1', 'char2', 'char3'])
+        && text(value.avatar, 36) && text(value.char1, 36) && text(value.char2, 36) && text(value.char3, 36);
+    }
+    function profile(value) {
+      return value.keys().hasAll(['name', 'bio', 'world', 'characters', 'images', 'published', 'updatedAt'])
+        && value.keys().hasOnly(['name', 'bio', 'world', 'characters', 'images', 'published', 'updatedAt'])
+        && text(value.name, 40) && value.name.size() > 0
+        && text(value.bio, 300) && text(value.world, 800)
+        && value.characters is list && value.characters.size() == 3
+        && character(value.characters[0]) && character(value.characters[1]) && character(value.characters[2])
+        && imageMap(value.images) && value.published is bool && value.updatedAt == request.time;
+    }
+
+    match /settings/registration {
+      allow get: if signedIn();
+      // Console/Admin SDKだけで設定。ブラウザから管理者UIDや受付状態を変更不可。
+      allow write, list: if false;
+    }
+    match /members/{uid} {
+      allow get: if owner(uid);
+      allow create: if owner(uid)
+        && request.resource.data.keys().hasAll(['slot', 'active', 'createdAt'])
+        && request.resource.data.keys().hasOnly(['slot', 'active', 'createdAt'])
+        && canJoin(request.resource.data.slot)
+        && request.resource.data.active == true && request.resource.data.createdAt == request.time
+        && !exists(/databases/$(database)/documents/seats/$(request.resource.data.slot))
+        && getAfter(/databases/$(database)/documents/seats/$(request.resource.data.slot)).data.uid == uid;
+      allow update, delete, list: if false;
+    }
+    match /seats/{slot} {
+      allow get: if signedIn() && validSlot(slot);
+      allow create: if canJoin(slot)
+        && request.resource.data.keys().hasAll(['uid', 'createdAt'])
+        && request.resource.data.keys().hasOnly(['uid', 'createdAt'])
+        && request.resource.data.uid == request.auth.uid && request.resource.data.createdAt == request.time
+        && !exists(/databases/$(database)/documents/members/$(request.auth.uid))
+        && getAfter(/databases/$(database)/documents/members/$(request.auth.uid)).data.slot == slot;
+      allow update, delete, list: if false;
+    }
+    match /profiles/{uid} {
+      allow read: if owner(uid) || resource.data.published == true;
+      allow create, update: if member(uid) && profile(request.resource.data);
+      // 停止中のメンバーも自分の投稿の削除は可能。
+      allow delete: if owner(uid);
+
+      match /images/{imageId} {
+        function full() { return imageId in ['avatar', 'char1', 'char2', 'char3']; }
+        function thumbnail() { return imageId in ['avatar-thumb', 'char1-thumb', 'char2-thumb', 'char3-thumb']; }
+        function validImage(value) {
+          return value.keys().hasAll(['data', 'width', 'height', 'mime', 'revision', 'updatedAt'])
+            && value.keys().hasOnly(['data', 'width', 'height', 'mime', 'revision', 'updatedAt'])
+            && value.data is bytes && value.data.size() >= 12
+            && value.data.size() <= (full() ? 150000 : 20000)
+            && value.width is int && value.height is int && value.width > 0 && value.height > 0
+            && value.width <= (full() ? 1000 : 240) && value.height <= (full() ? 1000 : 240)
+            && value.mime == 'image/webp' && text(value.revision, 36) && value.revision.size() == 36
+            && value.updatedAt == request.time;
+        }
+        allow get: if owner(uid) || get(/databases/$(database)/documents/profiles/$(uid)).data.published == true;
+        allow create, update: if member(uid) && (full() || thumbnail())
+          && existsAfter(/databases/$(database)/documents/profiles/$(uid))
+          && validImage(request.resource.data);
+        allow delete: if owner(uid) && (full() || thumbnail());
+        allow list: if false;
+      }
+    }
+    match /{document=**} { allow read, write: if false; }
+  }
+}
