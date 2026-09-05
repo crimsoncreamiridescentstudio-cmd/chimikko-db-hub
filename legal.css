@@ -1,0 +1,37 @@
+:root {
+  --background: #fffcf5;
+  --sub-background: #fcf0d1;
+  --card: #fff;
+  --ink: #4f3b2d;
+  --muted: #806b5d;
+  --accent: #f3b75b;
+  --border: 1.75px solid var(--ink);
+}
+
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+  margin: 0;
+  background: radial-gradient(circle at 20px 20px, rgba(79, 59, 45, .055) 1.4px, transparent 1.5px), var(--background);
+  background-size: 24px 24px;
+  color: var(--ink);
+  font-family: "M PLUS 2", sans-serif;
+  font-size: 16px;
+  line-height: 1.85;
+}
+a { color: var(--ink); font-weight: 700; }
+.legal-header { background: rgba(255, 252, 245, .95); border-bottom: var(--border); }
+.legal-header-inner, main, footer { width: min(820px, calc(100% - 32px)); margin: auto; }
+.legal-header-inner { min-height: 68px; display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.brand { color: var(--ink); font-family: "Kaisei Opti", serif; font-size: 1.2rem; text-decoration: none; }
+.back-link { font-size: .9rem; }
+main { margin-top: 40px; margin-bottom: 56px; padding: clamp(24px, 6vw, 52px); background: var(--card); border: var(--border); border-radius: 24px; box-shadow: 5px 5px 0 var(--ink); }
+h1, h2, h3 { font-family: "Kaisei Opti", serif; line-height: 1.5; }
+h1 { margin: 0 0 8px; font-size: clamp(1.8rem, 7vw, 2.8rem); }
+h2 { margin: 2.2em 0 .6em; font-size: 1.35rem; }
+p, li { overflow-wrap: anywhere; }
+.lead { color: var(--muted); }
+.notice { padding: 14px 16px; background: var(--sub-background); border: var(--border); border-radius: 12px; }
+li + li { margin-top: .35em; }
+footer { padding: 0 0 48px; color: var(--muted); text-align: center; font-size: .875rem; }
+@media (max-width: 560px) { main { margin-top: 20px; padding: 24px 20px; } .legal-header-inner { align-items: flex-start; flex-direction: column; padding: 14px 0; gap: 4px; } }

@@ -13,4 +13,6 @@ A tiny character database and publishing hub for creators
 
 Netlifyは `npm run build` で静的ファイルとiOS向けWebP変換Worker・WASMを `dist` へ出力します。テストツールやFirestoreルールを公開ディレクトリに含めません。画像変換は端末内で実行します。
 
+利用規約・プライバシーポリシー・コンテンツガイドラインはログイン不要で閲覧できます。Googleログインは3文書への同意チェック後に開始し、問い合わせ・削除依頼は公開のGoogleフォームで受け付けます。
+
 検証：`npm test`（画像処理）、`npm run test:rules`（Firestoreエミュレーター）。本番Firebaseと実ブラウザでのログイン・画像表示の確認は別途必要です。
